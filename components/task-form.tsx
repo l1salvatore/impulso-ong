@@ -25,12 +25,22 @@ import {
 } from '@/components/ui/select'
 import { Plus } from 'lucide-react'
 import { toast } from 'sonner'
+import type { TeamMember } from '@/lib/types'
 
-export function TaskForm({ defaultArea }: { defaultArea?: string }) {
+const UNASSIGNED = 'Sin asignar'
+
+export function TaskForm({
+  defaultArea,
+  team = [],
+}: {
+  defaultArea?: string
+  team?: TeamMember[]
+}) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [area, setArea] = useState(defaultArea ?? 'legal')
   const [priority, setPriority] = useState('media')
+  const [assignee, setAssignee] = useState(UNASSIGNED)
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -45,12 +55,13 @@ export function TaskForm({ defaultArea }: { defaultArea?: string }) {
         description: String(form.get('description') ?? ''),
         area,
         priority,
-        assignee: String(form.get('assignee') ?? ''),
+        assignee: assignee === UNASSIGNED ? '' : assignee,
         dueDate: form.get('dueDate')
           ? new Date(String(form.get('dueDate'))).toISOString()
           : null,
       })
       toast.success('Tarea creada')
+      setAssignee(UNASSIGNED)
       setOpen(false)
     } catch {
       toast.error('No se pudo crear la tarea')
@@ -117,8 +128,22 @@ export function TaskForm({ defaultArea }: { defaultArea?: string }) {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="flex flex-col gap-2">
-                <Label htmlFor="t-assignee">Responsable</Label>
-                <Input id="t-assignee" name="assignee" placeholder="Nombre" />
+                <Label>Responsable</Label>
+                <Select value={assignee} onValueChange={(v) => setAssignee(v as string)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={UNASSIGNED}>Sin asignar</SelectItem>
+                    {team
+                      .filter((m) => m.name)
+                      .map((m) => (
+                        <SelectItem key={m.userId} value={m.name as string}>
+                          {m.name}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="flex flex-col gap-2">
                 <Label htmlFor="t-date">Fecha límite</Label>
