@@ -9,7 +9,7 @@ import { z } from 'zod'
 import { db } from '@/lib/db'
 import { task, deadline, alert } from '@/lib/db/schema'
 import { auth } from '@/lib/auth'
-import { AI_MODEL } from '@/lib/constants'
+import { aiModel } from '@/lib/ai'
 import { asc, desc, eq } from 'drizzle-orm'
 import { headers } from 'next/headers'
 
@@ -25,7 +25,7 @@ export async function POST(req: Request) {
   const { messages }: { messages: UIMessage[] } = await req.json()
 
   const result = streamText({
-    model: AI_MODEL,
+    model: aiModel,
     stopWhen: stepCountIs(6),
     system:
       'Sos el asistente de gestión de "Fundación Aprender", una ONG que ofrece educación gratuita de testing y computación básica a la comunidad. ' +

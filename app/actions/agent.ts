@@ -3,7 +3,8 @@
 import { db } from '@/lib/db'
 import { task, deadline, alert } from '@/lib/db/schema'
 import { requireUserId } from '@/lib/session'
-import { AI_MODEL, AREA_KEYS } from '@/lib/constants'
+import { AREA_KEYS } from '@/lib/constants'
+import { aiModel } from '@/lib/ai'
 import { generateObject } from 'ai'
 import { z } from 'zod'
 import { revalidatePath } from 'next/cache'
@@ -53,7 +54,7 @@ export async function planTasksFromGoal(goal: string) {
   let object: z.infer<typeof planSchema>
   try {
     ;({ object } = await generateObject({
-      model: AI_MODEL,
+      model: aiModel,
       schema: planSchema,
       system:
         'Sos el asistente de gestión de una ONG que ofrece educación gratuita de testing y computación básica a la comunidad. ' +
@@ -125,7 +126,7 @@ export async function generateRecommendations() {
   let object: z.infer<typeof insightSchema>
   try {
     ;({ object } = await generateObject({
-      model: AI_MODEL,
+      model: aiModel,
       schema: insightSchema,
       system:
         'Sos el asistente de gestión de una ONG de educación gratuita. Analizás el estado de tareas y vencimientos ' +

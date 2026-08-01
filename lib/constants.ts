@@ -1,6 +1,3 @@
-// Modelo del agente de IA (via Vercel AI Gateway, sin configuración extra en v0)
-export const AI_MODEL = 'openai/gpt-5-mini'
-
 export const AREAS = {
   legal: {
     label: 'Legal y Administración',
