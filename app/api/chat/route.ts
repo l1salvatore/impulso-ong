@@ -16,6 +16,17 @@ import { headers } from 'next/headers'
 
 export const maxDuration = 30
 
+/** Extrae el texto plano del último mensaje del usuario. */
+function extractLastUserText(messages: UIMessage[]): string {
+  const lastUser = [...messages].reverse().find((m) => m.role === 'user')
+  if (!lastUser) return ''
+  return lastUser.parts
+    .filter((p): p is { type: 'text'; text: string } => p.type === 'text')
+    .map((p) => p.text)
+    .join(' ')
+    .trim()
+}
+
 export async function POST(req: Request) {
   const session = await auth.api.getSession({ headers: await headers() })
   if (!session?.user) {
@@ -25,52 +36,50 @@ export async function POST(req: Request) {
 
   const { messages }: { messages: UIMessage[] } = await req.json()
 
+  // --- RAG siempre activo -------------------------------------------------
+  // Recuperamos los fragmentos de documentos más relevantes para la última
+  // consulta del usuario y los inyectamos en el prompt. Así el asistente
+  // SIEMPRE tiene el contenido a la vista (no depende de decidir buscar) y
+  // hacemos una sola llamada al modelo en lugar de un ida y vuelta de tool,
+  // lo que además reduce los cortes por rate limit del plan gratuito.
+  const lastUserText = extractLastUserText(messages)
+  let documentContext = ''
+  if (lastUserText) {
+    try {
+      const found = await searchDocuments(lastUserText, { limit: 6 })
+      if (found.length > 0) {
+        documentContext = found
+          .map(
+            (r, i) =>
+              `[Documento ${i + 1}: "${r.title}" (área: ${r.area})]\n${r.content}`,
+          )
+          .join('\n\n')
+      }
+    } catch (err) {
+      console.error('[v0] Error recuperando documentos para el chat:', err)
+    }
+  }
+
   const result = streamText({
     model: aiModel,
     stopWhen: stepCountIs(6),
     system:
       'Sos el asistente de gestión de "Fundación Aprender", una ONG que ofrece educación gratuita de testing y computación básica a la comunidad. ' +
       'Trabajás sobre tres áreas: Legal y Administración, Redes y Comunicación, y Educación. ' +
-      'Ayudás al equipo a tomar decisiones y ejecutar: respondés dudas, consultás el estado de vencimientos, tareas y alertas, y podés crear tareas o registrar vencimientos cuando te lo piden. ' +
-      'Usá las herramientas disponibles para basar tus respuestas en datos reales de la organización en vez de inventar. ' +
-      'Cuando la pregunta sea sobre estatutos, normativas, reglamentos, procedimientos o el contenido de documentos cargados, ' +
-      'usá SIEMPRE la herramienta buscarEnDocumentos y respondé citando lo que encontraste (mencioná el título del documento). ' +
-      'Si no encontrás información en los documentos, decilo claramente en vez de inventar. ' +
-      'Sé claro, concreto y accionable. Respondé siempre en español rioplatense.',
+      'Ayudás al equipo a consultar el estado de vencimientos, tareas y alertas, y podés crear tareas o registrar vencimientos cuando te lo piden.\n\n' +
+      'REGLA FUNDAMENTAL: respondé ÚNICAMENTE con información que provenga de los documentos cargados (la sección "DOCUMENTOS RELEVANTES" de abajo) ' +
+      'o de los datos de la organización que obtengas con las herramientas (vencimientos, tareas, alertas). ' +
+      'NO uses conocimiento general ni inventes datos que no estén en esas fuentes. ' +
+      'Si la respuesta no está en los documentos ni en los datos de la organización, decí explícitamente: ' +
+      '"No encontré esa información en los documentos cargados." y ofrecé, si corresponde, que el usuario suba el documento pertinente.\n' +
+      'Cuando uses un documento, citá su título entre comillas. ' +
+      'Sé claro, concreto y accionable. Respondé siempre en español rioplatense.\n\n' +
+      (documentContext
+        ? `DOCUMENTOS RELEVANTES para la consulta actual:\n${documentContext}`
+        : 'DOCUMENTOS RELEVANTES: no se encontraron fragmentos de documentos relacionados con la consulta actual. ' +
+          'Si la pregunta es sobre el contenido de un documento, respondé que no lo encontraste en los documentos cargados.'),
     messages: await convertToModelMessages(messages),
     tools: {
-      buscarEnDocumentos: tool({
-        description:
-          'Busca información en los documentos cargados por el equipo (estatutos, normativas, reglamentos, manuales). ' +
-          'Usalo para responder preguntas sobre el contenido de esos documentos.',
-        inputSchema: z.object({
-          consulta: z
-            .string()
-            .describe('La pregunta o tema a buscar en los documentos'),
-          area: z
-            .enum(['legal', 'comunicacion', 'educacion'])
-            .optional()
-            .describe('Filtrar la búsqueda a un área específica (opcional)'),
-        }),
-        execute: async ({ consulta, area }) => {
-          const results = await searchDocuments(consulta, { area, limit: 5 })
-          if (results.length === 0) {
-            return {
-              encontrado: false,
-              mensaje: 'No se encontró información en los documentos cargados.',
-            }
-          }
-          return {
-            encontrado: true,
-            fragmentos: results.map((r) => ({
-              documento: r.title,
-              area: r.area,
-              contenido: r.content,
-              relevancia: Number(r.similarity.toFixed(3)),
-            })),
-          }
-        },
-      }),
       listarVencimientos: tool({
         description:
           'Lista los vencimientos (pagos, habilitaciones, presentaciones) registrados, ordenados por fecha.',
@@ -175,5 +184,14 @@ export async function POST(req: Request) {
     },
   })
 
-  return result.toUIMessageStreamResponse()
+  return result.toUIMessageStreamResponse({
+    onError: (error) => {
+      const text = error instanceof Error ? error.message : String(error)
+      console.error('[v0] Error en el chat:', text)
+      if (/rate.?limit/i.test(text)) {
+        return 'El servicio de IA está temporalmente saturado (límite de uso del plan gratuito). Esperá unos segundos y volvé a intentar.'
+      }
+      return 'Ocurrió un error procesando tu consulta. Intentá de nuevo.'
+    },
+  })
 }
