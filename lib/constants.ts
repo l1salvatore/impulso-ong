@@ -57,3 +57,17 @@ export const RECURRENCE = {
   mensual: 'Mensual',
   anual: 'Anual',
 } as const
+
+export const DOC_STATUSES = {
+  procesando: 'Procesando',
+  listo: 'Listo',
+  error: 'Error',
+} as const
+
+export const DOC_FILE_TYPES = {
+  pdf: 'PDF',
+  texto: 'Texto',
+  imagen: 'Imagen',
+} as const
+
+export type DocFileType = keyof typeof DOC_FILE_TYPES

@@ -4,17 +4,19 @@ import { getCurrentMember } from '@/app/actions/members'
 import { getDeadlines } from '@/app/actions/deadlines'
 import { getTasks } from '@/app/actions/tasks'
 import { getAlerts } from '@/app/actions/alerts'
+import { getDocuments } from '@/app/actions/documents'
 import { Dashboard } from '@/components/dashboard'
 
 export default async function HomePage() {
   const user = await getSessionUser()
   if (!user) redirect('/sign-in')
 
-  const [member, deadlines, tasks, alerts] = await Promise.all([
+  const [member, deadlines, tasks, alerts, documents] = await Promise.all([
     getCurrentMember(),
     getDeadlines(),
     getTasks(),
     getAlerts(),
+    getDocuments(),
   ])
 
   return (
@@ -23,6 +25,7 @@ export default async function HomePage() {
       deadlines={deadlines}
       tasks={tasks}
       alerts={alerts}
+      documents={documents}
     />
   )
 }
