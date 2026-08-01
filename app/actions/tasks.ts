@@ -3,6 +3,7 @@
 import { db } from '@/lib/db'
 import { task } from '@/lib/db/schema'
 import { requireUserId } from '@/lib/session'
+import { resolveAssigneeForArea } from '@/lib/assignment'
 import { asc, eq } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 
@@ -25,6 +26,13 @@ export async function getTasks() {
 
 export async function createTask(input: TaskInput) {
   const userId = await requireUserId()
+  // Si no se eligió un responsable manualmente, se asigna automáticamente
+  // según el área (Comunicación → coordinador, Educación → voluntario,
+  // Legal → admin).
+  const assignee =
+    input.assignee && input.assignee.trim()
+      ? input.assignee
+      : await resolveAssigneeForArea(input.area)
   const [row] = await db
     .insert(task)
     .values({
@@ -33,7 +41,7 @@ export async function createTask(input: TaskInput) {
       description: input.description ?? null,
       area: input.area,
       priority: input.priority ?? 'media',
-      assignee: input.assignee ?? null,
+      assignee: assignee ?? null,
       dueDate: input.dueDate ? new Date(input.dueDate) : null,
     })
     .returning()

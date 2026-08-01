@@ -3,6 +3,7 @@
 import { db } from '@/lib/db'
 import { task, deadline, alert } from '@/lib/db/schema'
 import { requireUserId } from '@/lib/session'
+import { resolveAssigneeForArea } from '@/lib/assignment'
 import { AREA_KEYS } from '@/lib/constants'
 import { aiModel } from '@/lib/ai'
 import { generateObject } from 'ai'
@@ -68,15 +69,21 @@ export async function planTasksFromGoal(goal: string) {
     throw err
   }
 
-  const values = object.tasks.map((t, i) => ({
-    createdBy: userId,
-    title: t.title,
-    description: t.description,
-    area: AREA_KEYS.includes(t.area) ? t.area : 'legal',
-    priority: t.priority,
-    createdByAI: true,
-    position: i,
-  }))
+  const values = await Promise.all(
+    object.tasks.map(async (t, i) => {
+      const area = AREA_KEYS.includes(t.area) ? t.area : 'legal'
+      return {
+        createdBy: userId,
+        title: t.title,
+        description: t.description,
+        area,
+        priority: t.priority,
+        assignee: await resolveAssigneeForArea(area),
+        createdByAI: true,
+        position: i,
+      }
+    }),
+  )
 
   await db.insert(task).values(values)
 
