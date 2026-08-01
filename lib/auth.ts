@@ -20,8 +20,11 @@ export const auth = betterAuth({
     ...(process.env.VERCEL_PROJECT_PRODUCTION_URL
       ? [`https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`]
       : []),
-    // Preview sandboxes de v0 (y localhost en desarrollo).
+    // Preview sandboxes de v0.
     'https://*.vercel.run',
+    // Deployments y alias de producción/preview en Vercel (el alias visible
+    // difiere de VERCEL_URL, que es la URL inmutable del deployment).
+    'https://*.vercel.app',
     ...(process.env.NODE_ENV === 'development'
       ? ['http://localhost:3000']
       : []),
