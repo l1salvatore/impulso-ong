@@ -46,34 +46,13 @@ export async function POST(request: NextRequest) {
     // 2. Extraer texto según el tipo de archivo. Si el formato no está
     // soportado, extractText lanza un error con un mensaje claro para el usuario.
     let text: string
-    let fileType: 'texto' | 'imagen'
+    let fileType: 'texto'
     try {
       const extracted = await extractText(buffer, file.type, file.name)
       text = extracted.text
       fileType = extracted.fileType
     } catch (err) {
       const errText = err instanceof Error ? err.message : ''
-      // Rate limit o falta de créditos del AI Gateway (al hacer OCR de una
-      // imagen): no es culpa del archivo, es un problema temporal del servicio.
-      if (/rate.?limit/i.test(errText)) {
-        return NextResponse.json(
-          {
-            error:
-              'El servicio de IA está temporalmente saturado (límite de uso del plan gratuito). Esperá unos minutos y volvé a intentar.',
-          },
-          { status: 503 },
-        )
-      }
-      if (errText.includes('credit card')) {
-        return NextResponse.json(
-          {
-            error:
-              'El procesamiento con IA no está disponible: falta habilitar el AI Gateway del proyecto.',
-          },
-          { status: 503 },
-        )
-      }
-      // Error real de formato / lectura del archivo.
       return NextResponse.json(
         { error: errText || 'No se pudo leer el archivo. Formato no soportado.' },
         { status: 415 },
@@ -98,9 +77,7 @@ export async function POST(request: NextRequest) {
     // 4. Chunking + embeddings.
     const chunks = chunkText(text)
     if (chunks.length === 0) {
-      const emptyMsg =
-        'No se pudo extraer texto del archivo. Verificá que el .txt tenga ' +
-        'contenido o que la imagen sea legible.'
+      const emptyMsg = 'El archivo .txt está vacío o no tiene contenido legible.'
       await db
         .update(document)
         .set({ status: 'error', errorMessage: emptyMsg })

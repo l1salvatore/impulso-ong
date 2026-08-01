@@ -1,39 +1,9 @@
 import 'server-only'
-import { embed, embedMany, generateText } from 'ai'
-import { embeddingModel, visionModel } from '@/lib/ai'
+import { embed, embedMany } from 'ai'
+import { embeddingModel } from '@/lib/ai'
 
-// --- Extracción de texto según el tipo de archivo --------------------------
-// Solo soportamos dos tipos: texto plano (.txt / .md) e imágenes.
-// Las imágenes se transcriben con un modelo multimodal (OCR).
-
-/** Usa un modelo multimodal para transcribir/describir el contenido de una imagen. */
-async function extractImage(buffer: Buffer, mimeType: string): Promise<string> {
-  const base64 = buffer.toString('base64')
-  const { text } = await generateText({
-    model: visionModel,
-    messages: [
-      {
-        role: 'user',
-        content: [
-          {
-            type: 'text',
-            text:
-              'Transcribí todo el texto visible en esta imagen de forma literal. ' +
-              'Si es un documento escaneado (formulario, certificado, comprobante), ' +
-              'devolvé el texto completo. Si no hay texto, describí detalladamente el contenido. ' +
-              'Respondé en español, sin comentarios adicionales.',
-          },
-          {
-            type: 'file',
-            data: `data:${mimeType};base64,${base64}`,
-            mediaType: mimeType,
-          },
-        ],
-      },
-    ],
-  })
-  return text.trim()
-}
+// --- Extracción de texto ---------------------------------------------------
+// Solo soportamos texto plano (.txt / .md / .csv).
 
 /**
  * Detecta si un buffer parece binario (muchos bytes no imprimibles),
@@ -50,36 +20,26 @@ function looksBinary(buffer: Buffer): boolean {
 }
 
 /**
- * Extrae texto plano de un archivo según su tipo.
- * Solo admite imágenes (OCR) y texto plano. Devuelve el texto y el
- * fileType normalizado (texto | imagen).
+ * Extrae texto plano de un archivo. Solo admite texto (.txt / .md / .csv).
+ * Devuelve el texto y el fileType normalizado.
  */
 export async function extractText(
   buffer: Buffer,
   mimeType: string,
   fileName: string,
-): Promise<{ text: string; fileType: 'texto' | 'imagen' }> {
+): Promise<{ text: string; fileType: 'texto' }> {
   const lower = fileName.toLowerCase()
 
-  if (mimeType.startsWith('image/')) {
-    return { text: await extractImage(buffer, mimeType), fileType: 'imagen' }
-  }
-
-  // Texto plano / markdown.
   const isTextExt =
     lower.endsWith('.txt') || lower.endsWith('.md') || lower.endsWith('.csv')
   if (isTextExt || mimeType.startsWith('text/') || mimeType === '') {
     if (looksBinary(buffer)) {
-      throw new Error(
-        'El archivo no parece ser de texto. Subí un .txt o una imagen.',
-      )
+      throw new Error('El archivo no parece ser de texto. Subí un archivo .txt.')
     }
     return { text: buffer.toString('utf-8'), fileType: 'texto' }
   }
 
-  throw new Error(
-    'Formato no soportado. Subí un archivo de texto (.txt) o una imagen.',
-  )
+  throw new Error('Formato no soportado. Subí un archivo de texto (.txt).')
 }
 
 // --- Chunking --------------------------------------------------------------

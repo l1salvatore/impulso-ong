@@ -21,7 +21,6 @@ import {
 } from '@/components/ui/select'
 import {
   FileText,
-  FileImage,
   Upload,
   Trash2,
   Download,
@@ -33,7 +32,6 @@ import {
 import { toast } from 'sonner'
 
 const FILE_ICON: Record<string, React.ComponentType<{ className?: string }>> = {
-  imagen: FileImage,
   texto: FileText,
 }
 
@@ -137,9 +135,9 @@ export function DocumentsView({ documents }: { documents: DocumentRow[] }) {
           Base de conocimiento
         </h2>
         <p className="text-sm text-muted-foreground text-pretty">
-          Subí notas, actas o comprobantes en texto (.txt) o imagen. El
-          asistente los indexa para responder consultas y crea automáticamente
-          las tareas y vencimientos que detecte en el módulo elegido.
+          Subí notas, actas o planes en archivos de texto (.txt). El asistente
+          los indexa para responder consultas y crea automáticamente las tareas
+          y vencimientos que detecte en el módulo elegido.
         </p>
       </div>
 
@@ -153,12 +151,12 @@ export function DocumentsView({ documents }: { documents: DocumentRow[] }) {
                 id="doc-file"
                 ref={fileRef}
                 type="file"
-                accept=".txt,.md,.csv,image/*"
+                accept=".txt,.md,.csv,text/plain"
                 onChange={(e) => setFile(e.target.files?.[0] ?? null)}
                 disabled={uploading}
               />
               <p className="text-xs text-muted-foreground">
-                Texto (.txt, .md) o imagen (JPG, PNG). Máximo 10 MB.
+                Archivo de texto (.txt, .md, .csv). Máximo 10 MB.
               </p>
             </div>
             <div className="flex flex-col gap-2">
