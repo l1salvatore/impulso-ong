@@ -41,8 +41,21 @@ export async function POST(request: NextRequest) {
       contentType: file.type || 'application/octet-stream',
     })
 
-    // 2. Extraer texto según el tipo de archivo.
-    const { text, fileType } = await extractText(buffer, file.type, file.name)
+    // 2. Extraer texto según el tipo de archivo. Si el formato no está
+    // soportado, extractText lanza un error con un mensaje claro para el usuario.
+    let text: string
+    let fileType: 'pdf' | 'texto' | 'imagen' | 'documento'
+    try {
+      const extracted = await extractText(buffer, file.type, file.name)
+      text = extracted.text
+      fileType = extracted.fileType
+    } catch (err) {
+      const msg =
+        err instanceof Error
+          ? err.message
+          : 'No se pudo leer el archivo. Formato no soportado.'
+      return NextResponse.json({ error: msg }, { status: 415 })
+    }
 
     // 3. Crear el registro del documento (estado: procesando).
     const [doc] = await db

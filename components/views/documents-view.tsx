@@ -37,6 +37,7 @@ const FILE_ICON: Record<string, React.ComponentType<{ className?: string }>> = {
   pdf: FileType,
   imagen: FileImage,
   texto: FileText,
+  documento: FileText,
 }
 
 function StatusBadge({ status }: { status: string }) {
@@ -126,8 +127,8 @@ export function DocumentsView({ documents }: { documents: DocumentRow[] }) {
           Base de conocimiento
         </h2>
         <p className="text-sm text-muted-foreground text-pretty">
-          Subí estatutos, normativas o manuales (PDF, texto o imágenes). El
-          asistente los usa para responder consultas del equipo.
+          Subí estatutos, normativas o manuales (PDF, Word, RTF, texto o
+          imágenes). El asistente los usa para responder consultas del equipo.
         </p>
       </div>
 
@@ -141,12 +142,13 @@ export function DocumentsView({ documents }: { documents: DocumentRow[] }) {
                 id="doc-file"
                 ref={fileRef}
                 type="file"
-                accept=".pdf,.txt,.md,image/*"
+                accept=".pdf,.docx,.rtf,.odt,.txt,.md,image/*"
                 onChange={(e) => setFile(e.target.files?.[0] ?? null)}
                 disabled={uploading}
               />
               <p className="text-xs text-muted-foreground">
-                PDF, texto o imagen. Máximo 10 MB.
+                PDF, Word (.docx), LibreOffice (.odt), RTF, texto o imagen.
+                Máximo 10 MB.
               </p>
             </div>
             <div className="flex flex-col gap-2">
@@ -274,6 +276,7 @@ export function DocumentsView({ documents }: { documents: DocumentRow[] }) {
                       variant="ghost"
                       size="icon"
                       className="size-8"
+                      nativeButton={false}
                       render={
                         <a
                           href={`/api/documents/file?pathname=${encodeURIComponent(doc.blobPathname)}`}

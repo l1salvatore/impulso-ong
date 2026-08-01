@@ -99,16 +99,48 @@ async function extractDocx(buffer: Buffer): Promise<string> {
   return value.trim()
 }
 
+/** Extrae el texto de un documento OpenDocument (.odt) de LibreOffice. */
+async function extractOdt(buffer: Buffer): Promise<string> {
+  const JSZip = (await import('jszip')).default
+  const zip = await JSZip.loadAsync(buffer)
+  const contentFile = zip.file('content.xml')
+  if (!contentFile) {
+    throw new Error('El archivo .odt no tiene contenido legible.')
+  }
+  const xml = await contentFile.async('string')
+  // Insertar saltos por párrafo/salto y luego quitar todas las etiquetas XML.
+  const text = xml
+    .replace(/<text:p[^>]*>/g, '\n')
+    .replace(/<text:line-break[^>]*\/?>/g, '\n')
+    .replace(/<[^>]+>/g, '')
+  // Decodificar entidades XML básicas.
+  return text
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&')
+    .replace(/&apos;/g, "'")
+    .replace(/&quot;/g, '"')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+}
+
 /** Quita los control words de un archivo RTF y devuelve el texto plano. */
 function extractRtf(buffer: Buffer): string {
   let rtf = buffer.toString('utf-8')
-  // Convertir escapes unicode \uN, quitar grupos de control y control words.
+  // 1. Eliminar grupos de encabezado que no son contenido (tablas de fuentes,
+  // colores, estilos, metadatos), incluido lo que hay dentro.
+  rtf = rtf.replace(
+    /\{\\(?:fonttbl|colortbl|stylesheet|info|\*\\[a-zA-Z]+)[^{}]*(?:\{[^{}]*\}[^{}]*)*\}/g,
+    '',
+  )
+  // 2. Saltos de párrafo y escapes unicode / hex.
+  rtf = rtf.replace(/\\par[d]?\b/g, '\n')
   rtf = rtf.replace(/\\u(-?\d+)\??/g, (_, n) => String.fromCharCode(Number(n) & 0xffff))
   rtf = rtf.replace(/\\'[0-9a-fA-F]{2}/g, ' ')
-  rtf = rtf.replace(/\\par[d]?/g, '\n')
+  // 3. Resto de control words y llaves de grupo.
   rtf = rtf.replace(/\\[a-zA-Z]+-?\d* ?/g, '')
   rtf = rtf.replace(/[{}]/g, '')
-  return rtf.trim()
+  return rtf.replace(/\n{3,}/g, '\n\n').trim()
 }
 
 /**
@@ -156,6 +188,14 @@ export async function extractText(
   // RTF
   if (mimeType === 'application/rtf' || mimeType === 'text/rtf' || lower.endsWith('.rtf')) {
     return { text: extractRtf(buffer), fileType: 'documento' }
+  }
+
+  // OpenDocument Text (.odt) de LibreOffice / OpenOffice.
+  if (
+    mimeType === 'application/vnd.oasis.opendocument.text' ||
+    lower.endsWith('.odt')
+  ) {
+    return { text: await extractOdt(buffer), fileType: 'documento' }
   }
 
   // .doc antiguo (binario) no está soportado: mejor avisar que fallar silencioso.
