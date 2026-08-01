@@ -10,3 +10,11 @@ const gateway = createGateway({
 
 // Modelo del agente de IA de la ONG.
 export const aiModel = gateway('openai/gpt-5-mini')
+
+// Modelo multimodal para extraer texto de imágenes (OCR / descripción).
+export const visionModel = gateway('openai/gpt-4o-mini')
+
+// Modelo de embeddings para la búsqueda semántica (RAG). 1536 dimensiones.
+export const embeddingModel = gateway.textEmbeddingModel(
+  'openai/text-embedding-3-small',
+)

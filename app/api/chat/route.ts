@@ -10,6 +10,7 @@ import { db } from '@/lib/db'
 import { task, deadline, alert } from '@/lib/db/schema'
 import { auth } from '@/lib/auth'
 import { aiModel } from '@/lib/ai'
+import { searchDocuments } from '@/app/actions/documents'
 import { asc, desc, eq } from 'drizzle-orm'
 import { headers } from 'next/headers'
 
@@ -32,9 +33,44 @@ export async function POST(req: Request) {
       'Trabajás sobre tres áreas: Legal y Administración, Redes y Comunicación, y Educación. ' +
       'Ayudás al equipo a tomar decisiones y ejecutar: respondés dudas, consultás el estado de vencimientos, tareas y alertas, y podés crear tareas o registrar vencimientos cuando te lo piden. ' +
       'Usá las herramientas disponibles para basar tus respuestas en datos reales de la organización en vez de inventar. ' +
+      'Cuando la pregunta sea sobre estatutos, normativas, reglamentos, procedimientos o el contenido de documentos cargados, ' +
+      'usá SIEMPRE la herramienta buscarEnDocumentos y respondé citando lo que encontraste (mencioná el título del documento). ' +
+      'Si no encontrás información en los documentos, decilo claramente en vez de inventar. ' +
       'Sé claro, concreto y accionable. Respondé siempre en español rioplatense.',
     messages: await convertToModelMessages(messages),
     tools: {
+      buscarEnDocumentos: tool({
+        description:
+          'Busca información en los documentos cargados por el equipo (estatutos, normativas, reglamentos, manuales). ' +
+          'Usalo para responder preguntas sobre el contenido de esos documentos.',
+        inputSchema: z.object({
+          consulta: z
+            .string()
+            .describe('La pregunta o tema a buscar en los documentos'),
+          area: z
+            .enum(['legal', 'comunicacion', 'educacion'])
+            .optional()
+            .describe('Filtrar la búsqueda a un área específica (opcional)'),
+        }),
+        execute: async ({ consulta, area }) => {
+          const results = await searchDocuments(consulta, { area, limit: 5 })
+          if (results.length === 0) {
+            return {
+              encontrado: false,
+              mensaje: 'No se encontró información en los documentos cargados.',
+            }
+          }
+          return {
+            encontrado: true,
+            fragmentos: results.map((r) => ({
+              documento: r.title,
+              area: r.area,
+              contenido: r.content,
+              relevancia: Number(r.similarity.toFixed(3)),
+            })),
+          }
+        },
+      }),
       listarVencimientos: tool({
         description:
           'Lista los vencimientos (pagos, habilitaciones, presentaciones) registrados, ordenados por fecha.',

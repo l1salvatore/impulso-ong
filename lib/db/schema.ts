@@ -6,7 +6,21 @@ import {
   serial,
   integer,
   numeric,
+  customType,
 } from 'drizzle-orm/pg-core'
+
+// Tipo pgvector para embeddings (1536 dims = text-embedding-3-small).
+const vector = customType<{ data: number[]; driverData: string }>({
+  dataType() {
+    return 'vector(1536)'
+  },
+  toDriver(value: number[]) {
+    return `[${value.join(',')}]`
+  },
+  fromDriver(value: string) {
+    return JSON.parse(value) as number[]
+  },
+})
 
 // --- Better Auth required tables -------------------------------------------
 // Column names are camelCase to match Better Auth's defaults. Do not rename.
@@ -102,6 +116,33 @@ export const task = pgTable('task', {
   dueDate: timestamp('dueDate'),
   createdByAI: boolean('createdByAI').notNull().default(false),
   position: integer('position').notNull().default(0),
+  createdAt: timestamp('createdAt').notNull().defaultNow(),
+})
+
+// Documentos de la base de conocimiento (RAG): estatutos, normativas, etc.
+export const document = pgTable('document', {
+  id: serial('id').primaryKey(),
+  createdBy: text('createdBy').notNull(),
+  title: text('title').notNull(),
+  area: text('area').notNull().default('legal'), // legal | comunicacion | educacion
+  fileType: text('fileType').notNull(), // pdf | texto | imagen
+  blobPathname: text('blobPathname').notNull(),
+  fileSize: integer('fileSize'),
+  status: text('status').notNull().default('procesando'), // procesando | listo | error
+  chunkCount: integer('chunkCount').notNull().default(0),
+  errorMessage: text('errorMessage'),
+  createdAt: timestamp('createdAt').notNull().defaultNow(),
+})
+
+// Fragmentos de cada documento con su embedding para búsqueda semántica.
+export const documentChunk = pgTable('document_chunk', {
+  id: serial('id').primaryKey(),
+  documentId: integer('documentId')
+    .notNull()
+    .references(() => document.id, { onDelete: 'cascade' }),
+  chunkIndex: integer('chunkIndex').notNull(),
+  content: text('content').notNull(),
+  embedding: vector('embedding'),
   createdAt: timestamp('createdAt').notNull().defaultNow(),
 })
 

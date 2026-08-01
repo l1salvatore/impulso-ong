@@ -1,12 +1,19 @@
 'use client'
 
 import { useState } from 'react'
-import type { Alert, CurrentMember, Deadline, Task } from '@/lib/types'
-import { AppSidebar } from '@/components/app-sidebar'
+import type {
+  Alert,
+  CurrentMember,
+  Deadline,
+  Task,
+  DocumentRow,
+} from '@/lib/types'
+import { AppSidebar, MobileNav } from '@/components/app-sidebar'
 import { Topbar } from '@/components/topbar'
 import { OverviewView } from '@/components/views/overview-view'
 import { AreaView } from '@/components/views/area-view'
 import { TasksView } from '@/components/views/tasks-view'
+import { DocumentsView } from '@/components/views/documents-view'
 import { AssistantPanel } from '@/components/assistant-panel'
 
 export type ViewKey =
@@ -15,17 +22,20 @@ export type ViewKey =
   | 'comunicacion'
   | 'educacion'
   | 'tareas'
+  | 'documentos'
 
 export function Dashboard({
   member,
   deadlines,
   tasks,
   alerts,
+  documents,
 }: {
   member: CurrentMember | null
   deadlines: Deadline[]
   tasks: Task[]
   alerts: Alert[]
+  documents: DocumentRow[]
 }) {
   const [view, setView] = useState<ViewKey>('overview')
   const [assistantOpen, setAssistantOpen] = useState(false)
@@ -44,6 +54,12 @@ export function Dashboard({
         <Topbar
           member={member}
           onOpenAssistant={() => setAssistantOpen(true)}
+          alertCount={activeAlerts.length}
+        />
+
+        <MobileNav
+          view={view}
+          onChange={setView}
           alertCount={activeAlerts.length}
         />
 
@@ -68,6 +84,9 @@ export function Dashboard({
           )}
           {view === 'tareas' && (
             <TasksView tasks={tasks} member={member} />
+          )}
+          {view === 'documentos' && (
+            <DocumentsView documents={documents} />
           )}
         </main>
       </div>
