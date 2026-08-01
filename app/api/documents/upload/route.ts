@@ -62,18 +62,15 @@ export async function POST(request: NextRequest) {
     // 4. Chunking + embeddings.
     const chunks = chunkText(text)
     if (chunks.length === 0) {
+      const emptyMsg =
+        'No se pudo extraer texto del archivo. Si es un PDF escaneado, ' +
+        'probá con un PDF con texto seleccionable o subí una imagen del documento.'
       await db
         .update(document)
-        .set({
-          status: 'error',
-          errorMessage: 'No se pudo extraer texto del archivo.',
-        })
+        .set({ status: 'error', errorMessage: emptyMsg })
         .where(eq(document.id, doc.id))
       revalidatePath('/')
-      return NextResponse.json(
-        { error: 'No se pudo extraer texto del archivo' },
-        { status: 422 },
-      )
+      return NextResponse.json({ error: emptyMsg }, { status: 422 })
     }
 
     const embeddings = await embedChunks(chunks)

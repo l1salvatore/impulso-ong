@@ -19,9 +19,11 @@
     "clsx": "^2.1.1",
     "drizzle-orm": "^0.45.2",
     "lucide-react": "^1.16.0",
+    "mammoth": "^1.12.0",
     "next": "16.2.6",
     "next-themes": "^0.4.6",
     "pdf-parse": "^2.4.5",
+    "pdf-to-img": "^6.2.0",
     "pg": "^8.22.0",
     "react": "^19",
     "react-dom": "^19",
@@ -44,7 +46,8 @@
   },
   "pnpm": {
     "overrides": {
-      "hono": "4.12.25"
+      "hono": "4.12.25",
+      "pdfjs-dist": "5.6.205"
     }
   }
 }
