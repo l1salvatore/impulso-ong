@@ -30,10 +30,21 @@ export async function getOrCreateMember(userId: string) {
   const anyMember = await db.select().from(memberProfile).limit(1)
   const role = anyMember.length === 0 ? 'admin' : 'voluntario'
 
-  const [created] = await db
+  // Insert idempotente: si otra request paralela (RSC) ya lo creó, no falla.
+  const created = await db
     .insert(memberProfile)
     .values({ userId, role })
+    .onConflictDoNothing({ target: memberProfile.userId })
     .returning()
 
-  return created
+  if (created.length > 0) return created[0]
+
+  // Hubo conflicto: el perfil ya existe, lo recuperamos.
+  const [fallback] = await db
+    .select()
+    .from(memberProfile)
+    .where(eq(memberProfile.userId, userId))
+    .limit(1)
+
+  return fallback
 }

@@ -8,6 +8,25 @@ import { generateObject } from 'ai'
 import { z } from 'zod'
 import { revalidatePath } from 'next/cache'
 
+// Error legible cuando el AI Gateway no está habilitado (falta tarjeta / crédito).
+class AIUnavailableError extends Error {
+  constructor() {
+    super(
+      'El asistente de IA no está disponible: falta habilitar el AI Gateway del proyecto (agregar una tarjeta para desbloquear el crédito gratuito).',
+    )
+    this.name = 'AIUnavailableError'
+  }
+}
+
+function isGatewayCreditError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err)
+  return (
+    msg.includes('credit card') ||
+    msg.includes('customer_verification_required') ||
+    msg.includes('402')
+  )
+}
+
 const planSchema = z.object({
   tasks: z
     .array(
@@ -31,16 +50,22 @@ const planSchema = z.object({
 export async function planTasksFromGoal(goal: string) {
   const userId = await requireUserId()
 
-  const { object } = await generateObject({
-    model: AI_MODEL,
-    schema: planSchema,
-    system:
-      'Sos el asistente de gestión de una ONG que ofrece educación gratuita de testing y computación básica a la comunidad. ' +
-      'La organización trabaja en tres áreas: Legal y Administración (legal), Redes y Comunicación (comunicacion) y Educación (educacion). ' +
-      'Descomponé el objetivo del usuario en tareas concretas, accionables y ejecutables por voluntarios. ' +
-      'Asigná cada tarea al área correcta y una prioridad realista. Respondé siempre en español.',
-    prompt: `Objetivo a planificar: ${goal}`,
-  })
+  let object: z.infer<typeof planSchema>
+  try {
+    ;({ object } = await generateObject({
+      model: AI_MODEL,
+      schema: planSchema,
+      system:
+        'Sos el asistente de gestión de una ONG que ofrece educación gratuita de testing y computación básica a la comunidad. ' +
+        'La organización trabaja en tres áreas: Legal y Administración (legal), Redes y Comunicación (comunicacion) y Educación (educacion). ' +
+        'Descomponé el objetivo del usuario en tareas concretas, accionables y ejecutables por voluntarios. ' +
+        'Asigná cada tarea al área correcta y una prioridad realista. Respondé siempre en español.',
+      prompt: `Objetivo a planificar: ${goal}`,
+    }))
+  } catch (err) {
+    if (isGatewayCreditError(err)) throw new AIUnavailableError()
+    throw err
+  }
 
   const values = object.tasks.map((t, i) => ({
     createdBy: userId,
@@ -97,15 +122,21 @@ export async function generateRecommendations() {
     })),
   }
 
-  const { object } = await generateObject({
-    model: AI_MODEL,
-    schema: insightSchema,
-    system:
-      'Sos el asistente de gestión de una ONG de educación gratuita. Analizás el estado de tareas y vencimientos ' +
-      'y generás recomendaciones proactivas y accionables para el equipo. Sé concreto: decí qué ejecutar. Respondé en español. ' +
-      'Si todo está bajo control, devolvé una lista vacía o una sola recomendación de mantenimiento.',
-    prompt: `Estado actual de la ONG (JSON):\n${JSON.stringify(context, null, 2)}\n\nGenerá hasta 5 recomendaciones priorizadas.`,
-  })
+  let object: z.infer<typeof insightSchema>
+  try {
+    ;({ object } = await generateObject({
+      model: AI_MODEL,
+      schema: insightSchema,
+      system:
+        'Sos el asistente de gestión de una ONG de educación gratuita. Analizás el estado de tareas y vencimientos ' +
+        'y generás recomendaciones proactivas y accionables para el equipo. Sé concreto: decí qué ejecutar. Respondé en español. ' +
+        'Si todo está bajo control, devolvé una lista vacía o una sola recomendación de mantenimiento.',
+      prompt: `Estado actual de la ONG (JSON):\n${JSON.stringify(context, null, 2)}\n\nGenerá hasta 5 recomendaciones priorizadas.`,
+    }))
+  } catch (err) {
+    if (isGatewayCreditError(err)) throw new AIUnavailableError()
+    throw err
+  }
 
   if (object.insights.length > 0) {
     await db.insert(alert).values(

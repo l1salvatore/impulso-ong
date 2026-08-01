@@ -52,8 +52,12 @@ export function AlertsPanel({ alerts }: { alerts: Alert[] }) {
           ? `La IA generó ${res.count} recomendación(es)`
           : 'La IA no encontró nada urgente por ahora',
       )
-    } catch {
-      toast.error('No se pudo generar recomendaciones')
+    } catch (err) {
+      const msg =
+        err instanceof Error && err.message.includes('AI Gateway')
+          ? err.message
+          : 'No se pudo generar recomendaciones'
+      toast.error(msg)
     } finally {
       setThinking(false)
     }

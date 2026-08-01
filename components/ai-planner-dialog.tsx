@@ -40,8 +40,12 @@ export function AiPlannerDialog({
       const res = await planTasksFromGoal(goal.trim())
       setResult(res)
       toast.success(`La IA creó ${res.count} tareas en el tablero`)
-    } catch {
-      toast.error("No se pudo generar el plan. Intentá de nuevo.")
+    } catch (err) {
+      const msg =
+        err instanceof Error && err.message.includes("AI Gateway")
+          ? err.message
+          : "No se pudo generar el plan. Intentá de nuevo."
+      toast.error(msg)
     } finally {
       setLoading(false)
     }
