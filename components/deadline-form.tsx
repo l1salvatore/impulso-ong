@@ -60,11 +60,9 @@ export function DeadlineForm({ defaultArea }: { defaultArea?: string }) {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button size="sm" className="gap-2">
-          <Plus className="h-4 w-4" aria-hidden="true" />
-          Nuevo vencimiento
-        </Button>
+      <DialogTrigger render={<Button size="sm" className="gap-2" />}>
+        <Plus className="h-4 w-4" aria-hidden="true" />
+        Nuevo vencimiento
       </DialogTrigger>
       <DialogContent>
         <form onSubmit={handleSubmit}>
@@ -103,7 +101,7 @@ export function DeadlineForm({ defaultArea }: { defaultArea?: string }) {
             <div className="grid grid-cols-2 gap-4">
               <div className="flex flex-col gap-2">
                 <Label>Área</Label>
-                <Select value={area} onValueChange={setArea}>
+                <Select value={area} onValueChange={(v) => setArea(v as string)}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -118,7 +116,7 @@ export function DeadlineForm({ defaultArea }: { defaultArea?: string }) {
               </div>
               <div className="flex flex-col gap-2">
                 <Label>Recurrencia</Label>
-                <Select value={recurrence} onValueChange={setRecurrence}>
+                <Select value={recurrence} onValueChange={(v) => setRecurrence(v as string)}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>

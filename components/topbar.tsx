@@ -82,14 +82,12 @@ export function Topbar({
       </div>
 
       <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <button className="flex items-center gap-2 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring">
-            <Avatar className="h-9 w-9">
-              <AvatarFallback className="bg-secondary text-secondary-foreground text-xs font-medium">
-                {initials}
-              </AvatarFallback>
-            </Avatar>
-          </button>
+        <DropdownMenuTrigger className="flex items-center gap-2 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          <Avatar className="h-9 w-9">
+            <AvatarFallback className="bg-secondary text-secondary-foreground text-xs font-medium">
+              {initials}
+            </AvatarFallback>
+          </Avatar>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">
           <DropdownMenuLabel className="flex flex-col gap-1">

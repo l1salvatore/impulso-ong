@@ -61,11 +61,9 @@ export function TaskForm({ defaultArea }: { defaultArea?: string }) {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button size="sm" className="gap-2">
-          <Plus className="h-4 w-4" aria-hidden="true" />
-          Nueva tarea
-        </Button>
+      <DialogTrigger render={<Button size="sm" className="gap-2" />}>
+        <Plus className="h-4 w-4" aria-hidden="true" />
+        Nueva tarea
       </DialogTrigger>
       <DialogContent>
         <form onSubmit={handleSubmit}>
@@ -88,7 +86,7 @@ export function TaskForm({ defaultArea }: { defaultArea?: string }) {
             <div className="grid grid-cols-2 gap-4">
               <div className="flex flex-col gap-2">
                 <Label>Área</Label>
-                <Select value={area} onValueChange={setArea}>
+                <Select value={area} onValueChange={(v) => setArea(v as string)}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -103,7 +101,7 @@ export function TaskForm({ defaultArea }: { defaultArea?: string }) {
               </div>
               <div className="flex flex-col gap-2">
                 <Label>Prioridad</Label>
-                <Select value={priority} onValueChange={setPriority}>
+                <Select value={priority} onValueChange={(v) => setPriority(v as string)}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
