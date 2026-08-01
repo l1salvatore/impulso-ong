@@ -7,6 +7,7 @@ import type {
   Deadline,
   Task,
   DocumentRow,
+  TeamMember,
 } from '@/lib/types'
 import { AppSidebar, MobileNav } from '@/components/app-sidebar'
 import { Topbar } from '@/components/topbar'
@@ -30,12 +31,14 @@ export function Dashboard({
   tasks,
   alerts,
   documents,
+  team,
 }: {
   member: CurrentMember | null
   deadlines: Deadline[]
   tasks: Task[]
   alerts: Alert[]
   documents: DocumentRow[]
+  team: TeamMember[]
 }) {
   const [view, setView] = useState<ViewKey>('overview')
   const [assistantOpen, setAssistantOpen] = useState(false)
@@ -83,7 +86,7 @@ export function Dashboard({
             />
           )}
           {view === 'tareas' && (
-            <TasksView tasks={tasks} member={member} />
+            <TasksView tasks={tasks} member={member} team={team} />
           )}
           {view === 'documentos' && (
             <DocumentsView documents={documents} />

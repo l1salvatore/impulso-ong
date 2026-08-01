@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import type { Task, CurrentMember } from "@/lib/types"
+import type { Task, CurrentMember, TeamMember } from "@/lib/types"
 import { TASK_STATUS_KEYS, TASK_STATUSES } from "@/lib/constants"
 import { updateTaskStatus, deleteTask } from "@/app/actions/tasks"
 import { Button } from "@/components/ui/button"
@@ -25,7 +25,15 @@ const STATUS_DOT: Record<string, string> = {
   hecho: "bg-primary",
 }
 
-export function TasksView({ tasks, member }: { tasks: Task[]; member: CurrentMember | null }) {
+export function TasksView({
+  tasks,
+  member,
+  team,
+}: {
+  tasks: Task[]
+  member: CurrentMember | null
+  team: TeamMember[]
+}) {
   const [plannerOpen, setPlannerOpen] = useState(false)
   const [dragId, setDragId] = useState<number | null>(null)
 
@@ -53,7 +61,7 @@ export function TasksView({ tasks, member }: { tasks: Task[]; member: CurrentMem
             <Sparkles className="size-4" aria-hidden="true" />
             Planificar con IA
           </Button>
-          <TaskForm />
+          <TaskForm team={team} />
         </div>
       </div>
 

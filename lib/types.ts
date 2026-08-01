@@ -17,3 +17,11 @@ export type CurrentMember = MemberProfile & {
   name: string
   email: string
 }
+
+export type TeamMember = {
+  userId: string
+  role: string
+  area: string | null
+  name: string | null
+  email: string | null
+}
