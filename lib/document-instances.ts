@@ -5,6 +5,7 @@ import { db } from '@/lib/db'
 import { task, deadline } from '@/lib/db/schema'
 import { aiModel } from '@/lib/ai'
 import { AREAS, type AreaKey } from '@/lib/constants'
+import { resolveAssigneeForArea } from '@/lib/assignment'
 
 // Esquema de lo que la IA extrae del documento.
 const extractionSchema = z.object({
@@ -99,9 +100,10 @@ export async function createInstancesFromDocument({
     return created
   }
 
-  // Insertar tareas.
+  // Insertar tareas, auto-asignadas según el área del documento.
   const validTasks = extraction.tareas.filter((t) => t.titulo?.trim())
   if (validTasks.length > 0) {
+    const assignee = await resolveAssigneeForArea(area)
     await db.insert(task).values(
       validTasks.map((t) => ({
         createdBy: userId,
@@ -109,6 +111,7 @@ export async function createInstancesFromDocument({
         description: t.descripcion?.trim() || `Generada desde "${documentTitle}"`,
         area,
         priority: t.prioridad,
+        assignee: assignee ?? null,
         createdByAI: true,
       })),
     )

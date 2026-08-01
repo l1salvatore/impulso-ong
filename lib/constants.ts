@@ -28,6 +28,14 @@ export const ROLES = {
 
 export type RoleKey = keyof typeof ROLES
 
+// Regla de asignación automática: cada área se asigna a un usuario con el rol
+// indicado. Comunicación → coordinador, Educación → voluntario, Legal → admin.
+export const AREA_ROLE: Record<AreaKey, RoleKey> = {
+  legal: 'admin',
+  comunicacion: 'coordinador',
+  educacion: 'voluntario',
+}
+
 export const TASK_STATUSES = {
   pendiente: 'Pendiente',
   en_progreso: 'En progreso',
