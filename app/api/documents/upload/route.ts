@@ -4,6 +4,8 @@ import { db } from '@/lib/db'
 import { document, documentChunk } from '@/lib/db/schema'
 import { getSessionUser } from '@/lib/session'
 import { extractText, chunkText, embedChunks } from '@/lib/rag'
+import { createInstancesFromDocument } from '@/lib/document-instances'
+import type { AreaKey } from '@/lib/constants'
 import { eq } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 
@@ -44,17 +46,38 @@ export async function POST(request: NextRequest) {
     // 2. Extraer texto según el tipo de archivo. Si el formato no está
     // soportado, extractText lanza un error con un mensaje claro para el usuario.
     let text: string
-    let fileType: 'pdf' | 'texto' | 'imagen' | 'documento'
+    let fileType: 'texto' | 'imagen'
     try {
       const extracted = await extractText(buffer, file.type, file.name)
       text = extracted.text
       fileType = extracted.fileType
     } catch (err) {
-      const msg =
-        err instanceof Error
-          ? err.message
-          : 'No se pudo leer el archivo. Formato no soportado.'
-      return NextResponse.json({ error: msg }, { status: 415 })
+      const errText = err instanceof Error ? err.message : ''
+      // Rate limit o falta de créditos del AI Gateway (al hacer OCR de una
+      // imagen): no es culpa del archivo, es un problema temporal del servicio.
+      if (/rate.?limit/i.test(errText)) {
+        return NextResponse.json(
+          {
+            error:
+              'El servicio de IA está temporalmente saturado (límite de uso del plan gratuito). Esperá unos minutos y volvé a intentar.',
+          },
+          { status: 503 },
+        )
+      }
+      if (errText.includes('credit card')) {
+        return NextResponse.json(
+          {
+            error:
+              'El procesamiento con IA no está disponible: falta habilitar el AI Gateway del proyecto.',
+          },
+          { status: 503 },
+        )
+      }
+      // Error real de formato / lectura del archivo.
+      return NextResponse.json(
+        { error: errText || 'No se pudo leer el archivo. Formato no soportado.' },
+        { status: 415 },
+      )
     }
 
     // 3. Crear el registro del documento (estado: procesando).
@@ -76,8 +99,8 @@ export async function POST(request: NextRequest) {
     const chunks = chunkText(text)
     if (chunks.length === 0) {
       const emptyMsg =
-        'No se pudo extraer texto del archivo. Si es un PDF escaneado, ' +
-        'probá con un PDF con texto seleccionable o subí una imagen del documento.'
+        'No se pudo extraer texto del archivo. Verificá que el .txt tenga ' +
+        'contenido o que la imagen sea legible.'
       await db
         .update(document)
         .set({ status: 'error', errorMessage: emptyMsg })
@@ -104,14 +127,33 @@ export async function POST(request: NextRequest) {
       .set({ status: 'listo', chunkCount: chunks.length })
       .where(eq(document.id, doc.id))
 
+    // 7. Crear automáticamente las instancias del módulo (tareas / vencimientos)
+    // que surjan del contenido del documento. Es tolerante a fallos: si algo
+    // sale mal, el documento igual queda cargado.
+    const created = await createInstancesFromDocument({
+      text,
+      area: area as AreaKey,
+      userId: user.id,
+      documentTitle: title || file.name,
+    })
+
     revalidatePath('/')
-    return NextResponse.json({ id: doc.id, chunkCount: chunks.length })
+    return NextResponse.json({
+      id: doc.id,
+      chunkCount: chunks.length,
+      created,
+    })
   } catch (err) {
     console.error('[v0] Error procesando documento:', err)
-    const message =
-      err instanceof Error && err.message.includes('credit card')
-        ? 'El procesamiento con IA no está disponible: falta habilitar el AI Gateway del proyecto.'
-        : 'No se pudo procesar el documento.'
+    const errText = err instanceof Error ? err.message : ''
+    let message = 'No se pudo procesar el documento.'
+    if (errText.includes('credit card')) {
+      message =
+        'El procesamiento con IA no está disponible: falta habilitar el AI Gateway del proyecto.'
+    } else if (/rate.?limit/i.test(errText)) {
+      message =
+        'El servicio de IA está temporalmente saturado (límite de uso). Esperá unos minutos y volvé a intentar.'
+    }
     if (docId != null) {
       await db
         .update(document)

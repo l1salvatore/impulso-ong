@@ -22,7 +22,6 @@ import {
 import {
   FileText,
   FileImage,
-  FileType,
   Upload,
   Trash2,
   Download,
@@ -34,10 +33,8 @@ import {
 import { toast } from 'sonner'
 
 const FILE_ICON: Record<string, React.ComponentType<{ className?: string }>> = {
-  pdf: FileType,
   imagen: FileImage,
   texto: FileText,
-  documento: FileText,
 }
 
 function StatusBadge({ status }: { status: string }) {
@@ -95,8 +92,21 @@ export function DocumentsView({ documents }: { documents: DocumentRow[] }) {
       if (!res.ok) {
         throw new Error(data.error ?? 'No se pudo subir el documento')
       }
+      const created = data.created as
+        | { tareas: number; vencimientos: number }
+        | undefined
+      const extras: string[] = []
+      if (created?.tareas) {
+        extras.push(`${created.tareas} tarea(s)`)
+      }
+      if (created?.vencimientos) {
+        extras.push(`${created.vencimientos} vencimiento(s)`)
+      }
       toast.success(
         `Documento procesado: ${data.chunkCount} fragmento(s) indexados`,
+        extras.length > 0
+          ? { description: `La IA creó ${extras.join(' y ')} en el módulo.` }
+          : undefined,
       )
       setFile(null)
       setTitle('')
@@ -127,8 +137,9 @@ export function DocumentsView({ documents }: { documents: DocumentRow[] }) {
           Base de conocimiento
         </h2>
         <p className="text-sm text-muted-foreground text-pretty">
-          Subí estatutos, normativas o manuales (PDF, Word, RTF, texto o
-          imágenes). El asistente los usa para responder consultas del equipo.
+          Subí notas, actas o comprobantes en texto (.txt) o imagen. El
+          asistente los indexa para responder consultas y crea automáticamente
+          las tareas y vencimientos que detecte en el módulo elegido.
         </p>
       </div>
 
@@ -142,13 +153,12 @@ export function DocumentsView({ documents }: { documents: DocumentRow[] }) {
                 id="doc-file"
                 ref={fileRef}
                 type="file"
-                accept=".pdf,.docx,.rtf,.odt,.txt,.md,image/*"
+                accept=".txt,.md,.csv,image/*"
                 onChange={(e) => setFile(e.target.files?.[0] ?? null)}
                 disabled={uploading}
               />
               <p className="text-xs text-muted-foreground">
-                PDF, Word (.docx), LibreOffice (.odt), RTF, texto o imagen.
-                Máximo 10 MB.
+                Texto (.txt, .md) o imagen (JPG, PNG). Máximo 10 MB.
               </p>
             </div>
             <div className="flex flex-col gap-2">
