@@ -1,7 +1,11 @@
 export function daysUntil(date: Date | string) {
+  // Comparamos días calendario en UTC para que servidor (UTC) y cliente
+  // (zona local) obtengan el mismo resultado y no rompan la hidratación.
   const d = new Date(date)
   const now = new Date()
-  return Math.ceil((d.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+  const dUTC = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())
+  const nowUTC = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
+  return Math.round((dUTC - nowUTC) / (1000 * 60 * 60 * 24))
 }
 
 export function formatDate(date: Date | string) {
