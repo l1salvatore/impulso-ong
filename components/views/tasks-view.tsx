@@ -7,16 +7,24 @@ import { updateTaskStatus, deleteTask } from "@/app/actions/tasks"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { PriorityBadge, AreaBadge } from "@/components/status-badges"
+import { PriorityBadge, AreaBadge, TaskStatusBadge } from "@/components/status-badges"
 import { TaskForm } from "@/components/task-form"
 import { AiPlannerDialog } from "@/components/ai-planner-dialog"
-import { Sparkles, Trash2, MoreVertical, CalendarClock } from "lucide-react"
+import { Sparkles, Trash2, MoreVertical, CalendarClock, User } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { formatDate } from "@/lib/ui-helpers"
 
 const STATUS_DOT: Record<string, string> = {
@@ -36,8 +44,17 @@ export function TasksView({
 }) {
   const [plannerOpen, setPlannerOpen] = useState(false)
   const [dragId, setDragId] = useState<number | null>(null)
+  const [selectedId, setSelectedId] = useState<number | null>(null)
 
   const canManage = member?.role === "admin" || member?.role === "coordinador"
+
+  // Siempre leemos la tarea desde la lista para reflejar cambios de estado en vivo.
+  const selectedTask = tasks.find((t) => t.id === selectedId) ?? null
+
+  async function changeStatus(status: string) {
+    if (selectedId == null) return
+    await updateTaskStatus(selectedId, status)
+  }
 
   async function onDrop(status: string) {
     if (dragId == null) return
@@ -94,7 +111,16 @@ export function TasksView({
                     draggable
                     onDragStart={() => setDragId(task.id)}
                     onDragEnd={() => setDragId(null)}
-                    className="group cursor-grab gap-2 p-3 active:cursor-grabbing"
+                    onClick={() => setSelectedId(task.id)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault()
+                        setSelectedId(task.id)
+                      }
+                    }}
+                    className="group cursor-pointer gap-2 p-3"
                   >
                     <div className="flex items-start justify-between gap-2">
                       <p className="flex-1 text-sm font-medium leading-snug">{task.title}</p>
@@ -106,6 +132,7 @@ export function TasksView({
                                 variant="ghost"
                                 size="icon"
                                 className="size-6 shrink-0 opacity-0 group-hover:opacity-100"
+                                onClick={(e) => e.stopPropagation()}
                               />
                             }
                           >
@@ -113,7 +140,13 @@ export function TasksView({
                             <span className="sr-only">Opciones de la tarea</span>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem variant="destructive" onClick={() => deleteTask(task.id)}>
+                            <DropdownMenuItem
+                              variant="destructive"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                deleteTask(task.id)
+                              }}
+                            >
                               <Trash2 className="size-4" />
                               Eliminar
                             </DropdownMenuItem>
@@ -161,6 +194,88 @@ export function TasksView({
       </div>
 
       <AiPlannerDialog open={plannerOpen} onOpenChange={setPlannerOpen} />
+
+      <Dialog open={selectedTask != null} onOpenChange={(o) => !o && setSelectedId(null)}>
+        <DialogContent>
+          {selectedTask && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="text-balance pr-6">{selectedTask.title}</DialogTitle>
+                <DialogDescription>Detalle de la tarea</DialogDescription>
+              </DialogHeader>
+
+              <div className="flex flex-col gap-4 py-2">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <TaskStatusBadge status={selectedTask.status} />
+                  <AreaBadge area={selectedTask.area} />
+                  <PriorityBadge priority={selectedTask.priority} />
+                  {selectedTask.createdByAI && (
+                    <Badge variant="outline" className="gap-1 text-[10px]">
+                      <Sparkles className="size-3" />
+                      IA
+                    </Badge>
+                  )}
+                </div>
+
+                {selectedTask.description && (
+                  <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-wrap">
+                    {selectedTask.description}
+                  </p>
+                )}
+
+                <div className="flex flex-col gap-2 rounded-lg bg-muted/40 p-3 text-sm">
+                  <div className="flex items-center gap-2">
+                    <User className="size-4 text-muted-foreground" aria-hidden="true" />
+                    <span className="text-muted-foreground">Responsable:</span>
+                    <span className="font-medium">{selectedTask.assignee || "Sin asignar"}</span>
+                  </div>
+                  {selectedTask.dueDate && (
+                    <div className="flex items-center gap-2">
+                      <CalendarClock className="size-4 text-muted-foreground" aria-hidden="true" />
+                      <span className="text-muted-foreground">Fecha límite:</span>
+                      <span className="font-medium">{formatDate(selectedTask.dueDate)}</span>
+                    </div>
+                  )}
+                </div>
+
+                {canManage && (
+                  <div className="flex flex-col gap-2">
+                    <span className="text-xs font-medium text-muted-foreground">Cambiar estado</span>
+                    <div className="flex flex-wrap gap-2">
+                      {TASK_STATUS_KEYS.map((statusKey) => (
+                        <Button
+                          key={statusKey}
+                          size="sm"
+                          variant={selectedTask.status === statusKey ? "default" : "secondary"}
+                          onClick={() => changeStatus(statusKey)}
+                        >
+                          {TASK_STATUSES[statusKey]}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {canManage && (
+                <DialogFooter>
+                  <Button
+                    variant="destructive"
+                    className="gap-2"
+                    onClick={() => {
+                      deleteTask(selectedTask.id)
+                      setSelectedId(null)
+                    }}
+                  >
+                    <Trash2 className="size-4" aria-hidden="true" />
+                    Eliminar tarea
+                  </Button>
+                </DialogFooter>
+              )}
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
