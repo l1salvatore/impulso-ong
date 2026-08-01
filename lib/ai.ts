@@ -9,7 +9,10 @@ const gateway = createGateway({
 })
 
 // Modelo del agente de IA de la ONG.
-export const aiModel = gateway('openai/gpt-5-mini')
+// Usamos un modelo rápido y no-razonador: consume mucha menos cuota por
+// respuesta que gpt-5-mini (que razona internamente) y tiene mejor
+// disponibilidad, reduciendo los cortes por rate limit del plan gratuito.
+export const aiModel = gateway('openai/gpt-4.1-mini')
 
 // Modelo de embeddings para la búsqueda semántica (RAG). 1536 dimensiones.
 export const embeddingModel = gateway.textEmbeddingModel(
