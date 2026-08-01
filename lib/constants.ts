@@ -65,7 +65,6 @@ export const DOC_STATUSES = {
 } as const
 
 export const DOC_FILE_TYPES = {
-  pdf: 'PDF',
   texto: 'Texto',
   imagen: 'Imagen',
 } as const
