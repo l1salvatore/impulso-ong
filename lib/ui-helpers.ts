@@ -5,10 +5,13 @@ export function daysUntil(date: Date | string) {
 }
 
 export function formatDate(date: Date | string) {
+  // timeZone: 'UTC' garantiza el mismo resultado en servidor y cliente,
+  // evitando errores de hidratación por diferencia de zona horaria.
   return new Date(date).toLocaleDateString('es-AR', {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
+    timeZone: 'UTC',
   })
 }
 
